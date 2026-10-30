@@ -1,0 +1,48 @@
+name: Slides
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build HTML
+        run: |
+          npx --yes @marp-team/marp-cli@4.0.3 --input-dir slides/ --html --output _site/
+          cp README.md _site/README.md
+          {
+            echo '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Carreira — Carlos Artur Guimarães</title>'
+            echo '<style>body{font-family:system-ui,sans-serif;max-width:760px;margin:48px auto;padding:0 16px;color:#1d2733;background:#fff}a{color:#1f3a5f}li{margin:8px 0}</style></head><body>'
+            echo '<h1>Carlos Artur Guimarães</h1><p>Governança de dados e tecnologias educacionais para redes públicas de ensino.</p><ul>'
+            for f in _site/*.html; do n=$(basename "$f"); [ "$n" = index.html ] && continue; echo "<li><a href=\"$n\">${n%.html}</a></li>"; done
+            echo '</ul></body></html>'
+          } > _site/index.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
